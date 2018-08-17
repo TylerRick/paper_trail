@@ -308,7 +308,7 @@ module PaperTrail
     # Remarkably when doing a #create with a custom item_type, ActiveRecord attempts
     # to update it back to the base_class.
     def ensure_item_type_persists_during_create
-      if changes.count == 1 && item_type_changed? && self.event == "create"
+      if changes.count == 1 && item_type_changed? && event == "create"
         self.item_type = item_type_was
       end
     end
