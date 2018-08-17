@@ -85,7 +85,6 @@ module PaperTrail
       data = event.data.merge(data_for_create)
 
       version = @record.send(@record.class.versions_association_name).new(data)
-      version.item_type = @record.class.name if @record.class.descends_from_active_record?
       version.save!
       version
     end
