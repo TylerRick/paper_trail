@@ -16,10 +16,10 @@ module PaperTrail
         data = {
           item_id: @record.id,
           item_type:
-            if klass.descends_from_active_record?
+            if klass.descends_from_active_record? || @record.respond_to?(klass.inheritance_column)
               klass.name
             else
-              @record.respond_to?(klass.inheritance_column) ? klass.name : klass.base_class.name
+              klass.base_class.name
             end,
           event: @record.paper_trail_event || "destroy",
           whodunnit: PaperTrail.request.whodunnit
