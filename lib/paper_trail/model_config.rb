@@ -110,14 +110,6 @@ module PaperTrail
       @_version_class ||= @model_class.version_class_name.constantize
     end
 
-    def versions_association_item_type
-      if @model_class.descends_from_active_record?
-        @model_class.base_class.name
-      else
-        @model_class.name
-      end
-    end
-
     private
 
     def active_record_gem_version
@@ -150,10 +142,8 @@ module PaperTrail
       klass.has_many(
         klass.versions_association_name,
         lambda do
-          relation = order(model.timestamp_sort_order)
-          item_type = klass.paper_trail.send(:versions_association_item_type)
-          relation = relation.unscope(where: :item_type).where(item_type: item_type)
-          relation
+          order!(model.timestamp_sort_order)
+          unscope(where: :item_type).where(item_type: klass.name) if klass.descendants.empty?
         end,
         class_name: klass.version_class_name,
         as: :item

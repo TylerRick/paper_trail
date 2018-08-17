@@ -84,7 +84,8 @@ module PaperTrail
       # `data_for_create` but PT-AT still does.
       data = event.data.merge(data_for_create)
 
-      version = @record.class.paper_trail.version_class.new(data)
+      version = @record.send(@record.class.versions_association_name).new(data)
+      version.item_type = @record.class.name if @record.class.descends_from_active_record?
       version.save!
       version
     end
@@ -138,7 +139,7 @@ module PaperTrail
       # `data_for_update` but PT-AT still does.
       data = event.data.merge(data_for_update)
 
-      version = @record.class.paper_trail.version_class.new(data)
+      version = @record.send(@record.class.versions_association_name).new(data)
       if version.save
         version
       else
@@ -164,7 +165,7 @@ module PaperTrail
       # `data_for_update_columns` but PT-AT still does.
       data = event.data.merge(data_for_update_columns)
 
-      version = @record.class.paper_trail.version_class.new(data)
+      version = @record.send(@record.class.versions_association_name).new(data)
       if version.save
         version
       else

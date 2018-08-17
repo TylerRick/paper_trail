@@ -20,6 +20,7 @@ module PaperTrail
       end
 
       validates_presence_of :event
+      before_update :ensure_item_type_persists_during_create
       after_create :enforce_version_limit!
     end
 
@@ -301,6 +302,14 @@ module PaperTrail
         rescue StandardError # TODO: Rescue something more specific
           {}
         end
+      end
+    end
+
+    # Remarkably when doing a #create with a custom item_type, ActiveRecord attempts
+    # to update it back to the base_class.
+    def ensure_item_type_persists_during_create
+      if changes.count == 1 && item_type_changed? && self.event == "create"
+        self.item_type = item_type_was
       end
     end
 
