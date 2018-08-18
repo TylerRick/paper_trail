@@ -12,15 +12,9 @@ module PaperTrail
       #
       # @api private
       def data
-        klass = @record.class
         data = {
           item_id: @record.id,
-          item_type:
-            if klass.descends_from_active_record? || @record.respond_to?(klass.inheritance_column)
-              klass.name
-            else
-              klass.base_class.name
-            end,
+          item_type: @record.class.name,
           event: @record.paper_trail_event || "destroy",
           whodunnit: PaperTrail.request.whodunnit
         }
