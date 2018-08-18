@@ -139,15 +139,24 @@ module PaperTrail
     # is "Dog". If `attrs["species"]` is blank, `item_type` is "Animal". See
     # `spec/models/animal_spec.rb`.
     def setup_versions_association(klass)
-      klass.has_many(
+      has_many = klass.has_many(
         klass.versions_association_name,
         lambda do
           order!(model.timestamp_sort_order)
-          unscope(where: :item_type).where(item_type: klass.name) if klass.descendants.empty?
+          unscope(where: :item_type).where(item_type: klass.name) unless klass.descendants.any?
         end,
         class_name: klass.version_class_name,
         as: :item
       )
+
+      # Only for this .versions association override HasManyAssociation#collection?
+      # (that normally always returns true) so it returns false when referring to
+      # a subclassed model that uses STI.  Allows .create() events to not revert
+      # back to base_class at the final stages when Association#creation_attributes
+      # gets called.
+      has_many[klass.versions_association_name.to_s].define_singleton_method(:collection?) do
+        active_record.descends_from_active_record?
+      end
 
       # We override the assocation when STI models are created from a base class
       # in order to use the right `item_type`.
