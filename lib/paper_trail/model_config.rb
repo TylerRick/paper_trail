@@ -139,31 +139,19 @@ module PaperTrail
     # is "Dog". If `attrs["species"]` is blank, `item_type` is "Animal". See
     # `spec/models/animal_spec.rb`.
     def setup_versions_association(klass)
-      has_manys = klass.has_many(
+      klass.has_many(
         klass.versions_association_name,
         lambda do
           order!(model.timestamp_sort_order)
-          unscope(where: :item_type).where(item_type: klass.name) unless klass.descendants.any?
+          unscope(where: :item_type).where(item_type: klass.name) unless klass.descendants.any? &&
+            !klass.columns.include?(klass.inheritance_column)
         end,
         class_name: klass.version_class_name,
         as: :item
       )
 
-      # Only for this .versions association override HasManyAssociation#collection?
-      # (that normally always returns true) so it returns false when referring to
-      # a subclassed model that uses STI.  Allows .create() events not to revert
-      # back to base_class at the final stages when Association#creation_attributes
-      # gets called.
-      has_manys[klass.versions_association_name.to_s].define_singleton_method(:collection?) do
-        active_record.descends_from_active_record?
-      end
-
-      setup_versions_association_when_inheriting(klass)
-    end
-
-    # When STI models are created from a base class, override the otherwise-inherited
-    # has_many :versions in order to use the right `item_type`.
-    def setup_versions_association_when_inheriting(klass)
+      # When STI models are created from a base class, override the otherwise-inherited
+      # has_many :versions so it will use the right `item_type`.
       klass.singleton_class.prepend(Module.new {
         def inherited(klass)
           super
@@ -171,6 +159,20 @@ module PaperTrail
         end
       })
     end
+
+    # Allow .create() events not to revert back to base_class at the final stages when
+    # Association#creation_attributes gets called.
+    ActiveRecord::Associations::HasManyAssociation.prepend(Module.new {
+      def creation_attributes
+        if reflection.klass.name == "PaperTrail::Version" &&
+            owner.respond_to?(owner.class.inheritance_column)
+          # For STI records PaperTrail uses the real class name instead of the base_class.
+          { item_type: owner.class.name, item_id: owner[reflection.active_record_primary_key] }
+        else
+          super
+        end
+      end
+    })
 
     def setup_associations(options)
       @model_class.class_attribute :version_association_name

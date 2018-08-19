@@ -138,12 +138,7 @@ module PaperTrail
       # `data_for_update` but PT-AT still does.
       data = event.data.merge(data_for_update)
 
-      version = @record.send(@record.class.versions_association_name).new(data)
-      if version.save
-        version
-      else
-        log_version_errors(version, :update)
-      end
+      update_record(data)
     end
 
     # PT-AT extends this method to add its transaction id.
@@ -164,11 +159,25 @@ module PaperTrail
       # `data_for_update_columns` but PT-AT still does.
       data = event.data.merge(data_for_update_columns)
 
-      version = @record.send(@record.class.versions_association_name).new(data)
-      if version.save
-        version
+      update_record(data)
+    end
+
+    # Used by both #record_update and #record_update_columns
+    def update_record(data)
+      versions_assoc = @record.send(@record.class.versions_association_name)
+      if @record.respond_to?(@record.class.inheritance_column)
+        # Version item_type will be the real class name
+        version = versions_assoc.new(data)
+        version.save
       else
+        # Version item_type will be the base_class name
+        version = versions_assoc.create(data)
+      end
+
+      if version.errors.any?
         log_version_errors(version, :update)
+      else
+        version
       end
     end
 
