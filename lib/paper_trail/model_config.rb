@@ -143,8 +143,9 @@ module PaperTrail
         klass.versions_association_name,
         lambda do
           order!(model.timestamp_sort_order)
-          unscope(where: :item_type).where(item_type: klass.name) unless klass.descendants.any? &&
-            !klass.columns.include?(klass.inheritance_column)
+          unless klass.descendants.any? && klass.columns.exclude?(klass.inheritance_column)
+            unscope(where: :item_type).where(item_type: klass.name)
+          end
         end,
         class_name: klass.version_class_name,
         as: :item
@@ -161,7 +162,8 @@ module PaperTrail
     end
 
     # Allow .create() events not to revert back to base_class at the final stages when
-    # Association#creation_attributes gets called.
+    # Association#creation_attributes gets called.  An override for this method from Rails:
+    # https://github.com/rails/rails/blob/v5.2.1/activerecord/lib/active_record/associations/association.rb#L198-L210
     ActiveRecord::Associations::HasManyAssociation.prepend(Module.new {
       def creation_attributes
         if reflection.klass.name == "PaperTrail::Version" &&
