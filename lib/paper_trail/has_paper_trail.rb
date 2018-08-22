@@ -59,8 +59,8 @@ module PaperTrail
       #   option does nothing)
       #
       # @api public
-      def has_paper_trail(options = {})
-        paper_trail.setup(options)
+      def has_paper_trail(options = {}, &block)
+        paper_trail.setup(options, &block)
       end
 
       # @api public

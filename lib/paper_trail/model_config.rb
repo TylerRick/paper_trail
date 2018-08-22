@@ -96,11 +96,11 @@ module PaperTrail
     # Set up `@model_class` for PaperTrail. Installs callbacks, associations,
     # "class attributes", instance methods, and more.
     # @api private
-    def setup(options = {})
+    def setup(options = {}, &has_many_extension)
       options[:on] ||= %i[create update destroy touch]
       options[:on] = Array(options[:on]) # Support single symbol
       @model_class.send :include, ::PaperTrail::Model::InstanceMethods
-      setup_options(options)
+      setup_options(options, &has_many_extension)
       setup_associations(options)
       @model_class.after_rollback { paper_trail.clear_rolled_back_versions }
       setup_callbacks_from_options options[:on]
@@ -138,7 +138,7 @@ module PaperTrail
     # inheritance column, `species`. If `attrs["species"]` is "Dog", `item_type`
     # is "Dog". If `attrs["species"]` is blank, `item_type` is "Animal". See
     # `spec/models/animal_spec.rb`.
-    def setup_versions_association(klass)
+    def setup_versions_association(klass, options = {}, &extension)
       klass.has_many(
         klass.versions_association_name,
         lambda do
@@ -148,15 +148,17 @@ module PaperTrail
           end
         end,
         class_name: klass.version_class_name,
-        as: :item
+        as: :item,
+        **options.slice(:autosave, :counter_cache, :dependent, :extend, :foreign_key, :foreign_type, :inverse_of, :primary_key, :source, :source_type, :validate),
+        &extension
       )
 
       # When STI models are created from a base class, override the otherwise-inherited
       # has_many :versions so it will use the right `item_type`.
       klass.singleton_class.prepend(Module.new {
-        def inherited(klass)
-          super
-          paper_trail.send(:setup_versions_association, klass)
+        define_method :inherited do |klass|
+          super(klass)
+          paper_trail.send(:setup_versions_association, klass, options, &extension)
         end
       })
     end
@@ -176,7 +178,7 @@ module PaperTrail
       end
     })
 
-    def setup_associations(options)
+    def setup_associations(options, &has_many_extension)
       @model_class.class_attribute :version_association_name
       @model_class.version_association_name = options[:version] || :version
 
@@ -193,7 +195,7 @@ module PaperTrail
 
       assert_concrete_activerecord_class(@model_class.version_class_name)
 
-      setup_versions_association(@model_class)
+      setup_versions_association(@model_class, options)
     end
 
     def setup_callbacks_from_options(options_on = [])
