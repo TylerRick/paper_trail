@@ -159,7 +159,8 @@ module PaperTrail
         @model_class.versions_association_name,
         -> { order(model.timestamp_sort_order) },
         class_name: @model_class.version_class_name,
-        as: :item
+        as: :item,
+        **options.slice(:autosave, :counter_cache, :dependent, :extend, :foreign_key, :foreign_type, :inverse_of, :primary_key, :source, :source_type, :validate)
       )
     end
 
